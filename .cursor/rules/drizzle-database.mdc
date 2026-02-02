@@ -1,0 +1,66 @@
+---
+alwaysApply: true
+description: Database interactions using Drizzle ORM
+---
+
+# Database Interactions with Drizzle ORM
+
+All database interactions in this project MUST use Drizzle ORM with the defined schema and queries.
+
+## Database Schema
+
+The database schema is defined in [src/db/schema.ts](mdc:src/db/schema.ts) and includes:
+
+- **decksTable**: Stores flashcard decks with user associations (Clerk user ID)
+- **cardsTable**: Stores individual flashcards with deck relationships (cascade delete)
+
+## Requirements
+
+1. **Always import from the schema**: Use the table definitions from [src/db/schema.ts](mdc:src/db/schema.ts)
+   ```typescript
+   import { decksTable, cardsTable } from "@/db/schema";
+   ```
+
+2. **Use the Drizzle database client**: Import the db client from [src/db/index.ts](mdc:src/db/index.ts)
+   ```typescript
+   import { db } from "@/db";
+   ```
+
+3. **Use Drizzle query methods**: All queries must use Drizzle's query builder or ORM methods
+   - `db.select()` for SELECT queries
+   - `db.insert()` for INSERT queries
+   - `db.update()` for UPDATE queries
+   - `db.delete()` for DELETE queries
+   - Use `.from()`, `.where()`, `.orderBy()`, etc. as needed
+
+4. **NO raw SQL queries**: Do not use raw SQL strings or other database libraries
+
+5. **Type safety**: Leverage TypeScript types inferred from the Drizzle schema
+
+## Example Usage
+
+```typescript
+// Query all decks for a user
+const decks = await db
+  .select()
+  .from(decksTable)
+  .where(eq(decksTable.userId, userId));
+
+// Create a new card
+await db.insert(cardsTable).values({
+  deckId: deckId,
+  front: "Question",
+  back: "Answer",
+});
+
+// Update a deck
+await db
+  .update(decksTable)
+  .set({ title: newTitle, updatedAt: new Date() })
+  .where(eq(decksTable.id, deckId));
+
+// Delete a card
+await db
+  .delete(cardsTable)
+  .where(eq(cardsTable.id, cardId));
+```
