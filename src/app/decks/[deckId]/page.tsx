@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { AddCardDialog } from "@/components/add-card-dialog";
 import { EditDeckDialog } from "@/components/edit-deck-dialog";
+import { DeleteDeckDialog } from "@/components/delete-deck-dialog";
 import { EditCardDialog } from "@/components/edit-card-dialog";
 import { DeleteCardDialog } from "@/components/delete-card-dialog";
 import Link from "next/link";
@@ -57,10 +58,13 @@ export default async function DeckPage({ params }: DeckPageProps) {
             )}
           </div>
           <div className="flex gap-2">
-            <Button variant="default" size="lg">
-              Study Now
-            </Button>
+            <Link href={`/decks/${deckId}/study`}>
+              <Button variant="default" size="lg">
+                Study Now
+              </Button>
+            </Link>
             <EditDeckDialog deck={{ id: deck.id, title: deck.title, description: deck.description }} />
+            <DeleteDeckDialog deck={{ id: deck.id, title: deck.title, cardCount: cards.length }} />
           </div>
         </div>
         <Link href="/dashboard">

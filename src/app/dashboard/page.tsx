@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { getUserDecks } from "@/db/queries/deck-queries";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { CreateDeckDialog } from "@/components/create-deck-dialog";
 import Link from "next/link";
 
 export default async function DashboardPage() {
@@ -16,11 +17,14 @@ export default async function DashboardPage() {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex flex-col gap-8">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
-          <p className="text-muted-foreground mt-1">
-            Your flashcard decks
-          </p>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
+            <p className="text-muted-foreground mt-1">
+              Your flashcard decks
+            </p>
+          </div>
+          <CreateDeckDialog />
         </div>
 
         {decks.length === 0 ? (
