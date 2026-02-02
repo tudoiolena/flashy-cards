@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { updateDeck } from "@/actions/deck-actions";
+import { toast } from "sonner";
 import { Pencil } from "lucide-react";
 
 interface EditDeckDialogProps {
@@ -51,6 +52,7 @@ export function EditDeckDialog({ deck, trigger }: EditDeckDialogProps) {
     try {
       await updateDeck({ deckId: deck.id, title, description });
       setOpen(false);
+      toast.success("Deck updated");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to update deck.");
     } finally {

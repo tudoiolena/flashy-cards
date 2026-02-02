@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { createCard } from "@/actions/card-actions";
+import { toast } from "sonner";
 import { Plus } from "lucide-react";
 
 interface AddCardDialogProps {
@@ -43,6 +44,7 @@ export function AddCardDialog({ deckId, trigger }: AddCardDialogProps) {
       await createCard({ deckId, front, back });
       form.reset();
       setOpen(false);
+      toast.success("Card added");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to add card.");
     } finally {

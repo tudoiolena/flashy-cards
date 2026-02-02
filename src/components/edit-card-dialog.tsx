@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { updateCard } from "@/actions/card-actions";
+import { toast } from "sonner";
 import { Pencil } from "lucide-react";
 
 interface EditCardDialogProps {
@@ -47,6 +48,7 @@ export function EditCardDialog({ card, trigger }: EditCardDialogProps) {
     try {
       await updateCard({ cardId: card.id, deckId: card.deckId, front, back });
       setOpen(false);
+      toast.success("Card updated");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to update card.");
     } finally {

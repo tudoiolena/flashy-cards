@@ -10,6 +10,7 @@ import {
 } from "@clerk/nextjs";
 import { dark } from "@clerk/themes";
 import { Button } from "@/components/ui/button";
+import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
 const poppins = Poppins({
@@ -34,7 +35,7 @@ export default function RootLayout({
         baseTheme: dark,
       }}
     >
-      <html lang="en" className="dark">
+      <html lang="en" className="dark" suppressHydrationWarning>
         <body className={`${poppins.variable} antialiased`}>
           <header className="border-b border-gray-800">
             <div className="container mx-auto px-4 py-4 flex justify-between items-center">
@@ -55,6 +56,7 @@ export default function RootLayout({
             </div>
           </header>
           {children}
+          <Toaster />
         </body>
       </html>
     </ClerkProvider>

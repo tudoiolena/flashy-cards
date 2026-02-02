@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { deleteCard } from "@/actions/card-actions";
+import { toast } from "sonner";
 import { Trash2 } from "lucide-react";
 
 interface DeleteCardDialogProps {
@@ -33,6 +34,7 @@ export function DeleteCardDialog({ card, trigger }: DeleteCardDialogProps) {
     try {
       await deleteCard({ cardId: card.id, deckId: card.deckId });
       setOpen(false);
+      toast.success("Card removed");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to delete card.");
     } finally {
