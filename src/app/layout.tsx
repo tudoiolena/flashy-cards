@@ -41,10 +41,10 @@ export default function RootLayout({
               <h1 className="text-xl font-semibold">FlashyCards</h1>
               <div className="flex gap-4 items-center">
                 <SignedOut>
-                  <SignInButton mode="modal">
+                  <SignInButton mode="modal" fallbackRedirectUrl="/dashboard">
                     <Button variant="default">Sign In</Button>
                   </SignInButton>
-                  <SignUpButton mode="modal">
+                  <SignUpButton mode="modal" fallbackRedirectUrl="/dashboard">
                     <Button variant="outline">Sign Up</Button>
                   </SignUpButton>
                 </SignedOut>

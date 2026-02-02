@@ -44,7 +44,7 @@ export default async function MyComponent() {
   const { userId } = await auth();
   
   if (!userId) {
-    redirect("/sign-in");
+    redirect("/");
   }
   
   // Proceed with authenticated user
