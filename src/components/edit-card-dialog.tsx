@@ -12,15 +12,20 @@ import {
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { createCard } from "@/actions/card-actions";
-import { Plus } from "lucide-react";
+import { updateCard } from "@/actions/card-actions";
+import { Pencil } from "lucide-react";
 
-interface AddCardDialogProps {
-  deckId: number;
+interface EditCardDialogProps {
+  card: {
+    id: number;
+    deckId: number;
+    front: string;
+    back: string;
+  };
   trigger?: React.ReactNode;
 }
 
-export function AddCardDialog({ deckId, trigger }: AddCardDialogProps) {
+export function EditCardDialog({ card, trigger }: EditCardDialogProps) {
   const [open, setOpen] = useState(false);
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -40,11 +45,10 @@ export function AddCardDialog({ deckId, trigger }: AddCardDialogProps) {
 
     setIsPending(true);
     try {
-      await createCard({ deckId, front, back });
-      form.reset();
+      await updateCard({ cardId: card.id, deckId: card.deckId, front, back });
       setOpen(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to add card.");
+      setError(err instanceof Error ? err.message : "Failed to update card.");
     } finally {
       setIsPending(false);
     }
@@ -54,41 +58,43 @@ export function AddCardDialog({ deckId, trigger }: AddCardDialogProps) {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         {trigger ?? (
-          <Button variant="default" type="button" className="gap-2">
-            <Plus className="size-4" />
-            Add Card
+          <Button variant="outline" size="sm" type="button" className="gap-2">
+            <Pencil className="size-4" />
+            Edit
           </Button>
         )}
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Add Card</DialogTitle>
+          <DialogTitle>Edit Card</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="front">Front</Label>
+            <Label htmlFor="edit-card-front">Front</Label>
             <Textarea
-              id="front"
+              id="edit-card-front"
               name="front"
               placeholder="Question or term"
               required
               maxLength={1000}
               disabled={isPending}
               rows={4}
-              className="resize-none min-h-[80px]"
+              className="resize-none min-h-[80px] bg-background"
+              defaultValue={card.front}
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="back">Back</Label>
+            <Label htmlFor="edit-card-back">Back</Label>
             <Textarea
-              id="back"
+              id="edit-card-back"
               name="back"
               placeholder="Answer or definition"
               required
               maxLength={1000}
               disabled={isPending}
               rows={4}
-              className="resize-none min-h-[80px]"
+              className="resize-none min-h-[80px] bg-background"
+              defaultValue={card.back}
             />
           </div>
           {error && (
@@ -106,7 +112,7 @@ export function AddCardDialog({ deckId, trigger }: AddCardDialogProps) {
               Cancel
             </Button>
             <Button type="submit" disabled={isPending}>
-              {isPending ? "Adding…" : "Add Card"}
+              {isPending ? "Saving…" : "Save Changes"}
             </Button>
           </DialogFooter>
         </form>

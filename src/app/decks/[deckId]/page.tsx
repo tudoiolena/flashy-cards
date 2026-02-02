@@ -6,6 +6,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { AddCardDialog } from "@/components/add-card-dialog";
+import { EditDeckDialog } from "@/components/edit-deck-dialog";
+import { EditCardDialog } from "@/components/edit-card-dialog";
+import { DeleteCardDialog } from "@/components/delete-card-dialog";
 import Link from "next/link";
 
 interface DeckPageProps {
@@ -57,9 +60,7 @@ export default async function DeckPage({ params }: DeckPageProps) {
             <Button variant="default" size="lg">
               Study Now
             </Button>
-            <Button variant="outline" size="lg">
-              Edit Deck
-            </Button>
+            <EditDeckDialog deck={{ id: deck.id, title: deck.title, description: deck.description }} />
           </div>
         </div>
         <Link href="/dashboard">
@@ -108,12 +109,21 @@ export default async function DeckPage({ params }: DeckPageProps) {
                     <p className="text-base">{card.back}</p>
                   </div>
                   <div className="flex gap-2 mt-4">
-                    <Button variant="outline" size="sm">
-                      Edit
-                    </Button>
-                    <Button variant="ghost" size="sm">
-                      Delete
-                    </Button>
+                    <EditCardDialog
+                      card={{
+                        id: card.id,
+                        deckId: card.deckId,
+                        front: card.front,
+                        back: card.back,
+                      }}
+                    />
+                    <DeleteCardDialog
+                      card={{
+                        id: card.id,
+                        deckId: card.deckId,
+                        front: card.front,
+                      }}
+                    />
                   </div>
                 </CardContent>
               </Card>

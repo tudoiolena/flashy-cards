@@ -10,17 +10,22 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { createCard } from "@/actions/card-actions";
-import { Plus } from "lucide-react";
+import { updateDeck } from "@/actions/deck-actions";
+import { Pencil } from "lucide-react";
 
-interface AddCardDialogProps {
-  deckId: number;
+interface EditDeckDialogProps {
+  deck: {
+    id: number;
+    title: string;
+    description: string | null;
+  };
   trigger?: React.ReactNode;
 }
 
-export function AddCardDialog({ deckId, trigger }: AddCardDialogProps) {
+export function EditDeckDialog({ deck, trigger }: EditDeckDialogProps) {
   const [open, setOpen] = useState(false);
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -30,21 +35,24 @@ export function AddCardDialog({ deckId, trigger }: AddCardDialogProps) {
     setError(null);
     const form = e.currentTarget;
     const formData = new FormData(form);
-    const front = (formData.get("front") as string)?.trim() ?? "";
-    const back = (formData.get("back") as string)?.trim() ?? "";
+    const title = (formData.get("title") as string)?.trim() ?? "";
+    const descriptionRaw = formData.get("description");
+    const description =
+      descriptionRaw === null || descriptionRaw === ""
+        ? null
+        : (descriptionRaw as string).trim() || null;
 
-    if (!front || !back) {
-      setError("Front and back are required.");
+    if (!title) {
+      setError("Title is required.");
       return;
     }
 
     setIsPending(true);
     try {
-      await createCard({ deckId, front, back });
-      form.reset();
+      await updateDeck({ deckId: deck.id, title, description });
       setOpen(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to add card.");
+      setError(err instanceof Error ? err.message : "Failed to update deck.");
     } finally {
       setIsPending(false);
     }
@@ -54,41 +62,41 @@ export function AddCardDialog({ deckId, trigger }: AddCardDialogProps) {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         {trigger ?? (
-          <Button variant="default" type="button" className="gap-2">
-            <Plus className="size-4" />
-            Add Card
+          <Button variant="outline" size="lg" type="button" className="gap-2">
+            <Pencil className="size-4" />
+            Edit Deck
           </Button>
         )}
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Add Card</DialogTitle>
+          <DialogTitle>Edit Deck</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="front">Front</Label>
-            <Textarea
-              id="front"
-              name="front"
-              placeholder="Question or term"
+            <Label htmlFor="edit-deck-title">Title</Label>
+            <Input
+              id="edit-deck-title"
+              name="title"
+              placeholder="Deck title"
               required
-              maxLength={1000}
+              maxLength={255}
               disabled={isPending}
-              rows={4}
-              className="resize-none min-h-[80px]"
+              defaultValue={deck.title}
+              className="bg-background"
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="back">Back</Label>
+            <Label htmlFor="edit-deck-description">Description (optional)</Label>
             <Textarea
-              id="back"
-              name="back"
-              placeholder="Answer or definition"
-              required
-              maxLength={1000}
+              id="edit-deck-description"
+              name="description"
+              placeholder="Brief description of this deck"
+              maxLength={2000}
               disabled={isPending}
+              defaultValue={deck.description ?? ""}
               rows={4}
-              className="resize-none min-h-[80px]"
+              className="resize-none min-h-[80px] bg-background"
             />
           </div>
           {error && (
@@ -106,7 +114,7 @@ export function AddCardDialog({ deckId, trigger }: AddCardDialogProps) {
               Cancel
             </Button>
             <Button type="submit" disabled={isPending}>
-              {isPending ? "Adding…" : "Add Card"}
+              {isPending ? "Saving…" : "Save Changes"}
             </Button>
           </DialogFooter>
         </form>
