@@ -1,0 +1,459 @@
+---
+alwaysApply: true
+---
+# Vercel AI SDK for OpenAI Integration
+
+This project uses the Vercel AI SDK (`ai` npm package) to call OpenAI for AI-powered features, specifically the AI flashcard generation feature.
+
+## Required Dependencies
+
+Install the following packages:
+
+```bash
+npm install ai @ai-sdk/openai
+```
+
+## Setup
+
+The OpenAI API key should be stored in your `.env` file:
+
+```env
+OPENAI_API_KEY=your_openai_api_key_here
+```
+
+## Core Pattern: Generating Structured Flashcard Data
+
+All AI flashcard generation MUST use `generateObject` from the `ai` package with Zod schemas to ensure type-safe, structured output.
+
+### Basic Pattern for Flashcard Generation
+
+```typescript
+import { openai, OpenAIChatLanguageModelOptions } from '@ai-sdk/openai';
+import { generateObject } from 'ai';
+import { z } from 'zod';
+
+// Define the schema for a single flashcard
+const flashcardSchema = z.object({
+  front: z.string().describe('The question or prompt side of the flashcard'),
+  back: z.string().describe('The answer or response side of the flashcard'),
+});
+
+// Define the schema for multiple flashcards
+const flashcardsSchema = z.object({
+  cards: z.array(flashcardSchema).describe('An array of flashcards'),
+});
+
+// Generate flashcards
+const result = await generateObject({
+  model: openai.chat('gpt-4o-2024-08-06'),
+  providerOptions: {
+    openai: {
+      strictJsonSchema: false,
+    } satisfies OpenAIChatLanguageModelOptions,
+  },
+  schemaName: 'flashcards',
+  schemaDescription: 'A collection of flashcards with front and back sides.',
+  schema: flashcardsSchema,
+  prompt: 'Generate 10 flashcards about JavaScript fundamentals. Each card should have a clear question on the front and a concise answer on the back.',
+});
+
+// Access the generated cards
+const generatedCards = result.object.cards;
+// Each card has: { front: string, back: string }
+```
+
+### Complete Server Action Example
+
+All AI generation MUST be implemented as Server Actions following the project's data patterns:
+
+```typescript
+"use server";
+
+import { auth } from "@clerk/nextjs/server";
+import { openai, OpenAIChatLanguageModelOptions } from '@ai-sdk/openai';
+import { generateObject } from 'ai';
+import { z } from 'zod';
+import { revalidatePath } from 'next/cache';
+import { createCardQuery } from '@/db/queries/card-queries';
+
+// Input validation schema
+const generateFlashcardsSchema = z.object({
+  deckId: z.number().positive(),
+  topic: z.string().min(1, "Topic is required").max(500),
+  count: z.number().int().min(1).max(50).default(10),
+});
+
+type GenerateFlashcardsInput = z.infer<typeof generateFlashcardsSchema>;
+
+// Flashcard schema for AI generation
+const flashcardSchema = z.object({
+  front: z.string().describe('The question or prompt side of the flashcard'),
+  back: z.string().describe('The answer or response side of the flashcard'),
+});
+
+const flashcardsSchema = z.object({
+  cards: z.array(flashcardSchema).describe('An array of flashcards'),
+});
+
+export async function generateAIFlashcards(data: GenerateFlashcardsInput) {
+  // 1. Authenticate
+  const { has, userId } = await auth();
+  if (!userId) {
+    throw new Error("Unauthorized");
+  }
+
+  // 2. Check feature access (AI generation is a Pro feature)
+  const hasAIGeneration = has({ feature: "ai_flashcard_generation" });
+  if (!hasAIGeneration) {
+    throw new Error("AI flashcard generation requires Pro subscription");
+  }
+
+  // 3. Validate input
+  const validated = generateFlashcardsSchema.parse(data);
+
+  // 4. Verify deck ownership (cards belong to decks, verify deck ownership)
+  // This should be done in the query helper, but verify here too for security
+  // See clerk-auth.mdc for deck ownership verification patterns
+
+  // 5. Generate flashcards using AI
+  const result = await generateObject({
+    model: openai.chat('gpt-4o-2024-08-06'),
+    providerOptions: {
+      openai: {
+        strictJsonSchema: false,
+      } satisfies OpenAIChatLanguageModelOptions,
+    },
+    schemaName: 'flashcards',
+    schemaDescription: `A collection of ${validated.count} flashcards about ${validated.topic}.`,
+    schema: flashcardsSchema,
+    prompt: `Generate exactly ${validated.count} flashcards about "${validated.topic}". Each flashcard should have:
+- Front: A clear question, prompt, or term
+- Back: A concise, accurate answer or definition
+
+Make the flashcards educational and useful for studying.`,
+  });
+
+  // 6. Create cards in database using query helpers
+  const createdCards = [];
+  for (const card of result.object.cards) {
+    const createdCard = await createCardQuery({
+      deckId: validated.deckId,
+      userId, // Pass userId for ownership verification in query helper
+      front: card.front,
+      back: card.back,
+    });
+    createdCards.push(createdCard);
+  }
+
+  // 7. Revalidate paths
+  revalidatePath(`/decks/${validated.deckId}`);
+
+  return createdCards;
+}
+```
+
+## Requirements
+
+### 1. Always Use `generateObject` for Structured Output
+
+**NEVER** use `generateText` or streaming APIs for flashcard generation. Always use `generateObject` with Zod schemas:
+
+```typescript
+// ✅ CORRECT: Using generateObject with Zod schema
+const result = await generateObject({
+  model: openai.chat('gpt-4o-2024-08-06'),
+  schema: flashcardsSchema,
+  prompt: 'Generate flashcards...',
+});
+
+// ❌ WRONG: Using generateText (unstructured output)
+const result = await generateText({
+  model: openai.chat('gpt-4o-2024-08-06'),
+  prompt: 'Generate flashcards...',
+});
+```
+
+### 2. Always Define Zod Schemas
+
+Every AI generation MUST have a Zod schema that matches the expected output structure:
+
+```typescript
+// ✅ CORRECT: Proper schema definition
+const flashcardSchema = z.object({
+  front: z.string().describe('The question side'),
+  back: z.string().describe('The answer side'),
+});
+
+const flashcardsSchema = z.object({
+  cards: z.array(flashcardSchema),
+});
+
+// ❌ WRONG: No schema or incorrect structure
+// Missing schema definition
+```
+
+### 3. Always Check Feature Access
+
+AI generation MUST check for the `ai_flashcard_generation` feature before proceeding:
+
+```typescript
+// ✅ CORRECT: Feature check before AI generation
+const { has, userId } = await auth();
+if (!userId) throw new Error("Unauthorized");
+
+const hasAIGeneration = has({ feature: "ai_flashcard_generation" });
+if (!hasAIGeneration) {
+  throw new Error("AI generation requires Pro subscription");
+}
+
+// Proceed with AI generation...
+
+// ❌ WRONG: Missing feature check
+const { userId } = await auth();
+// Missing feature check!
+// Proceed with AI generation...
+```
+
+### 4. Always Use Query Helpers for Database Operations
+
+After generating flashcards, use query helpers from `db/queries` to save them:
+
+```typescript
+// ✅ CORRECT: Using query helper
+import { createCardQuery } from '@/db/queries/card-queries';
+
+for (const card of result.object.cards) {
+  await createCardQuery({
+    deckId: validated.deckId,
+    userId,
+    front: card.front,
+    back: card.back,
+  });
+}
+
+// ❌ WRONG: Direct database operations
+import { db } from '@/db';
+import { cardsTable } from '@/db/schema';
+
+for (const card of result.object.cards) {
+  await db.insert(cardsTable).values({
+    deckId: validated.deckId,
+    front: card.front,
+    back: card.back,
+  });
+}
+```
+
+### 5. Always Verify Deck Ownership
+
+Before generating cards for a deck, verify the user owns the deck:
+
+```typescript
+// ✅ CORRECT: Verify deck ownership
+import { getDeckById } from '@/db/queries/deck-queries';
+
+const deck = await getDeckById(validated.deckId, userId);
+if (!deck) {
+  throw new Error("Deck not found or unauthorized");
+}
+
+// Proceed with generation...
+
+// ❌ WRONG: No ownership verification
+// Proceed with generation without checking...
+```
+
+## Model Configuration
+
+### Recommended Model
+
+Use `gpt-4o-2024-08-06` for best results with structured output:
+
+```typescript
+model: openai.chat('gpt-4o-2024-08-06')
+```
+
+### Provider Options
+
+Always include `strictJsonSchema: false` in provider options for better flexibility:
+
+```typescript
+providerOptions: {
+  openai: {
+    strictJsonSchema: false,
+  } satisfies OpenAIChatLanguageModelOptions,
+}
+```
+
+## Error Handling
+
+Always handle errors appropriately:
+
+```typescript
+try {
+  const result = await generateObject({
+    // ... configuration
+  });
+  
+  // Process results...
+} catch (error) {
+  if (error instanceof Error) {
+    // Handle specific error types
+    if (error.message.includes('rate limit')) {
+      throw new Error('Rate limit exceeded. Please try again later.');
+    }
+    throw new Error(`AI generation failed: ${error.message}`);
+  }
+  throw new Error('An unexpected error occurred during AI generation');
+}
+```
+
+## Prompt Engineering Best Practices
+
+### Good Prompts
+
+- Be specific about the number of cards needed
+- Include the topic/subject clearly
+- Specify the format (front/back)
+- Request educational quality
+
+```typescript
+prompt: `Generate exactly 10 flashcards about "JavaScript Promises". Each flashcard should have:
+- Front: A clear question or term
+- Back: A concise, accurate answer or definition
+
+Make the flashcards educational and useful for studying.`
+```
+
+### Bad Prompts
+
+- Too vague
+- Missing count specification
+- Unclear format requirements
+
+```typescript
+// ❌ WRONG: Vague prompt
+prompt: 'Make some flashcards about JavaScript'
+```
+
+## Integration with Existing Patterns
+
+### Server Actions Pattern
+
+AI generation MUST follow the Server Actions pattern:
+- Use `"use server"` directive
+- Authenticate with `await auth()`
+- Validate input with Zod
+- Use query helpers for database operations
+- Call `revalidatePath` after mutations
+
+### Feature Gating Pattern
+
+AI generation MUST check feature access:
+- Use `has({ feature: "ai_flashcard_generation" })`
+- Throw clear error messages
+- Guide users to upgrade if needed
+
+### Database Pattern
+
+AI-generated cards MUST be saved using query helpers:
+- Use `createCardQuery` from `@/db/queries/card-queries`
+- Pass `userId` for ownership verification
+- Verify deck ownership before creating cards
+
+## Example: Complete Implementation
+
+```typescript
+// src/actions/ai-card-actions.ts
+"use server";
+
+import { auth } from "@clerk/nextjs/server";
+import { openai, OpenAIChatLanguageModelOptions } from '@ai-sdk/openai';
+import { generateObject } from 'ai';
+import { z } from 'zod';
+import { revalidatePath } from 'next/cache';
+import { getDeckById } from '@/db/queries/deck-queries';
+import { createCardQuery } from '@/db/queries/card-queries';
+
+const generateFlashcardsSchema = z.object({
+  deckId: z.number().positive(),
+  topic: z.string().min(1).max(500),
+  count: z.number().int().min(1).max(50).default(10),
+});
+
+type GenerateFlashcardsInput = z.infer<typeof generateFlashcardsSchema>;
+
+const flashcardSchema = z.object({
+  front: z.string().describe('The question or prompt side of the flashcard'),
+  back: z.string().describe('The answer or response side of the flashcard'),
+});
+
+const flashcardsSchema = z.object({
+  cards: z.array(flashcardSchema).describe('An array of flashcards'),
+});
+
+export async function generateAIFlashcards(data: GenerateFlashcardsInput) {
+  // 1. Authenticate
+  const { has, userId } = await auth();
+  if (!userId) {
+    throw new Error("Unauthorized");
+  }
+
+  // 2. Validate input
+  const validated = generateFlashcardsSchema.parse(data);
+
+  // 3. Check feature access
+  const hasAIGeneration = has({ feature: "ai_flashcard_generation" });
+  if (!hasAIGeneration) {
+    throw new Error("AI flashcard generation requires Pro subscription. Upgrade at /pricing");
+  }
+
+  // 4. Verify deck ownership
+  const deck = await getDeckById(validated.deckId, userId);
+  if (!deck) {
+    throw new Error("Deck not found or unauthorized");
+  }
+
+  // 5. Generate flashcards
+  const result = await generateObject({
+    model: openai.chat('gpt-4o-2024-08-06'),
+    providerOptions: {
+      openai: {
+        strictJsonSchema: false,
+      } satisfies OpenAIChatLanguageModelOptions,
+    },
+    schemaName: 'flashcards',
+    schemaDescription: `A collection of ${validated.count} flashcards about ${validated.topic}.`,
+    schema: flashcardsSchema,
+    prompt: `Generate exactly ${validated.count} flashcards about "${validated.topic}". Each flashcard should have:
+- Front: A clear question, prompt, or term
+- Back: A concise, accurate answer or definition
+
+Make the flashcards educational and useful for studying.`,
+  });
+
+  // 6. Create cards in database
+  const createdCards = [];
+  for (const card of result.object.cards) {
+    const createdCard = await createCardQuery({
+      deckId: validated.deckId,
+      userId,
+      front: card.front.trim(),
+      back: card.back.trim(),
+    });
+    createdCards.push(createdCard);
+  }
+
+  // 7. Revalidate
+  revalidatePath(`/decks/${validated.deckId}`);
+
+  return createdCards;
+}
+```
+
+## References
+
+- [Vercel AI SDK Documentation](https://sdk.vercel.ai/docs)
+- [OpenAI Provider Documentation](https://sdk.vercel.ai/providers/ai-sdk-providers/openai)
+- [generateObject API](https://sdk.vercel.ai/docs/reference/ai-sdk-core/generate-object)
+- [Structured Outputs Guide](https://sdk.vercel.ai/docs/guides/structured-outputs)

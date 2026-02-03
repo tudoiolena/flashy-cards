@@ -10,6 +10,7 @@ import { EditDeckDialog } from "@/components/edit-deck-dialog";
 import { DeleteDeckDialog } from "@/components/delete-deck-dialog";
 import { EditCardDialog } from "@/components/edit-card-dialog";
 import { DeleteCardDialog } from "@/components/delete-card-dialog";
+import { GenerateAICardsButton } from "@/components/generate-ai-cards-button";
 import Link from "next/link";
 
 interface DeckPageProps {
@@ -19,7 +20,7 @@ interface DeckPageProps {
 }
 
 export default async function DeckPage({ params }: DeckPageProps) {
-  const { userId } = await auth();
+  const { has, userId } = await auth();
   
   if (!userId) {
     redirect("/");
@@ -40,6 +41,7 @@ export default async function DeckPage({ params }: DeckPageProps) {
   }
 
   const cards = await getCardsByDeckId(deckIdNumber, userId);
+  const hasAIGeneration = has({ feature: "ai_flashcard_generation" });
 
   return (
     <div className="container mx-auto py-8 px-4 max-w-6xl">
@@ -78,7 +80,14 @@ export default async function DeckPage({ params }: DeckPageProps) {
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-2xl font-semibold">Cards</h2>
-          <AddCardDialog deckId={deckIdNumber} />
+          <div className="flex items-center gap-2">
+            <GenerateAICardsButton 
+              deckId={deckIdNumber} 
+              hasDescription={!!deck.description && deck.description.trim() !== ''}
+              hasAIGeneration={hasAIGeneration}
+            />
+            <AddCardDialog deckId={deckIdNumber} />
+          </div>
         </div>
 
         {cards.length === 0 ? (
