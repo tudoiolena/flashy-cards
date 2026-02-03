@@ -3,28 +3,48 @@ import { redirect } from "next/navigation";
 import { getUserDecks } from "@/db/queries/deck-queries";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { CreateDeckDialog } from "@/components/create-deck-dialog";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import Link from "next/link";
 
 export default async function DashboardPage() {
-  const { userId } = await auth();
+  const { has, userId } = await auth();
 
   if (!userId) {
     redirect("/");
   }
 
   const decks = await getUserDecks(userId);
+  const hasUnlimitedDecks = has({ feature: "unlimited_decks" });
+  const isAtLimit = !hasUnlimitedDecks && decks.length >= 3;
 
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex flex-col gap-8">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
+            <div className="flex items-center gap-3">
+              <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
+              {hasUnlimitedDecks && (
+                <Badge variant="secondary">Pro</Badge>
+              )}
+            </div>
             <p className="text-muted-foreground mt-1">
-              Your flashcard decks
+              {hasUnlimitedDecks
+                ? "Your flashcard decks"
+                : `${decks.length}/3 decks`}
             </p>
           </div>
-          <CreateDeckDialog />
+          <div className="flex items-center gap-2">
+            {isAtLimit && (
+              <Link href="/pricing">
+                <Button variant="outline" size="sm">
+                  Upgrade to Pro
+                </Button>
+              </Link>
+            )}
+            <CreateDeckDialog isAtLimit={isAtLimit} />
+          </div>
         </div>
 
         {decks.length === 0 ? (

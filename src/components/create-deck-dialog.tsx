@@ -16,12 +16,14 @@ import { Label } from "@/components/ui/label";
 import { createDeck } from "@/actions/deck-actions";
 import { toast } from "sonner";
 import { Plus } from "lucide-react";
+import Link from "next/link";
 
 interface CreateDeckDialogProps {
   trigger?: React.ReactNode;
+  isAtLimit?: boolean;
 }
 
-export function CreateDeckDialog({ trigger }: CreateDeckDialogProps) {
+export function CreateDeckDialog({ trigger, isAtLimit = false }: CreateDeckDialogProps) {
   const [open, setOpen] = useState(false);
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -96,9 +98,30 @@ export function CreateDeckDialog({ trigger }: CreateDeckDialogProps) {
             />
           </div>
           {error && (
-            <p className="text-sm text-destructive" role="alert">
-              {error}
-            </p>
+            <div className="space-y-2">
+              <p className="text-sm text-destructive" role="alert">
+                {error}
+              </p>
+              {error.includes("maximum of 3 decks") && (
+                <Link href="/pricing">
+                  <Button variant="outline" size="sm" className="w-full">
+                    Upgrade to Pro
+                  </Button>
+                </Link>
+              )}
+            </div>
+          )}
+          {isAtLimit && !error && (
+            <div className="rounded-lg border border-muted bg-muted/50 p-4 space-y-2">
+              <p className="text-sm text-muted-foreground">
+                You&apos;ve reached the maximum of 3 decks on the free plan.
+              </p>
+              <Link href="/pricing">
+                <Button variant="outline" size="sm" className="w-full">
+                  Upgrade to Pro for unlimited decks
+                </Button>
+              </Link>
+            </div>
           )}
           <DialogFooter>
             <Button
@@ -109,7 +132,7 @@ export function CreateDeckDialog({ trigger }: CreateDeckDialogProps) {
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={isPending}>
+            <Button type="submit" disabled={isPending || isAtLimit}>
               {isPending ? "Creating…" : "Create Deck"}
             </Button>
           </DialogFooter>
